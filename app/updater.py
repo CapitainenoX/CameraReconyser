@@ -137,8 +137,10 @@ def _write_swap_script(src: Path, dst: Path) -> Path:
     # attend la fermeture, copie (sauf data\), relance, se supprime
     content = (
         "@echo off\r\n"
-        "ping 127.0.0.1 -n 3 >nul\r\n"
-        f'robocopy "{src}" "{dst}" /MIR /XD "{dst}\\data" /R:3 /W:1 >nul\r\n'
+        "ping 127.0.0.1 -n 5 >nul\r\n"  # laisse l'app + webview se fermer
+        "taskkill /IM CameraRecognizer.exe /F >nul 2>&1\r\n"
+        "ping 127.0.0.1 -n 2 >nul\r\n"
+        f'robocopy "{src}" "{dst}" /MIR /XD "{dst}\\data" /R:6 /W:2 >nul\r\n'
         f'start "" "{exe}"\r\n'
         '(goto) 2>nul & del "%~f0"\r\n'
     )
