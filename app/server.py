@@ -40,6 +40,7 @@ class AppState:
         self.tts = TTSManager()
         self.actions = ActionEngine(self.tts, self.broadcast_threadsafe)
         self.router = TriggerRouter(self.actions, self.face, self.speaker, self.broadcast_threadsafe)
+        self.actions.fire_rule = self.router.fire_manual
         self.camera = CameraManager(self.face, self._on_camera_event)
         self.voice = VoiceManager(self._on_transcript, self._on_voice_command, self._on_speaker_vec)
         self._enroll_speaker_id: str | None = None

@@ -66,6 +66,7 @@ class ActionEngine:
         self.tts = tts
         self.notify = notify
         self.alarm = AlarmPlayer()
+        self.fire_rule: Callable[[str], bool] | None = None  # branché par le serveur
 
     def run_actions(self, actions: list[dict[str, Any]], context: dict[str, Any] | None = None) -> None:
         threading.Thread(target=self._run, args=(actions, context or {}), daemon=True).start()
@@ -78,7 +79,14 @@ class ActionEngine:
                 self.notify("toast", {"level": "error", "message": f"Action echouee: {exc}"})
 
     def _fmt(self, text: str, ctx: dict[str, Any]) -> str:
-        return text.replace("{name}", str(ctx.get("name", "")))
+        out = text.replace("{name}", str(ctx.get("name", "")))
+        out = out.replace("{gesture}", str(ctx.get("gesture", "")))
+        out = out.replace("{sequence}", str(ctx.get("sequence", "")))
+        out = out.replace("{text}", str(ctx.get("text", "")))
+        now = datetime.datetime.now()
+        out = out.replace("{time}", now.strftime("%H:%M"))
+        out = out.replace("{date}", now.strftime("%d/%m/%Y"))
+        return out
 
     def _exec_one(self, action: dict[str, Any], ctx: dict[str, Any]) -> None:
         kind = action.get("type", "")
@@ -151,3 +159,74 @@ class ActionEngine:
         elif kind == "lock":
             import ctypes
             ctypes.windll.user32.LockWorkStation()  # type: ignore[attr-defined]
+        elif kind == "clipboard":
+            text = self._fmt(action.get("text", ""), ctx)
+            flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+            subprocess.run("clip", input=text.encode("utf-16le"), creationflags=flags)
+        elif kind == "paste":
+            import pyautogui
+            pyautogui.hotkey("ctrl", "v")
+        elif kind == "mouse_click":
+            import pyautogui
+            btn = action.get("button", "left")
+            clicks = 2 if btn == "double" else 1
+            real = "left" if btn == "double" else btn
+            x, y = action.get("x", ""), action.get("y", "")
+            if str(x).strip() and str(y).strip():
+                pyautogui.click(int(x), int(y), clicks=clicks, button=real)
+            else:
+                pyautogui.click(clicks=clicks, button=real)
+        elif kind == "mouse_move":
+            import pyautogui
+            pyautogui.moveTo(int(action.get("x", 0)), int(action.get("y", 0)), duration=0.15)
+        elif kind == "window":
+            import pyautogui
+            op = action.get("op", "minimize_all")
+            if op == "minimize_all":
+                pyautogui.hotkey("win", "d")
+            elif op == "maximize":
+                pyautogui.hotkey("win", "up")
+            elif op == "close":
+                pyautogui.hotkey("alt", "f4")
+            elif op == "switch":
+                pyautogui.hotkey("alt", "tab")
+        elif kind == "play_sound":
+            self._play_wav(action.get("path", "").strip())
+        elif kind == "say_time":
+            now = datetime.datetime.now()
+            self.tts.say(f"Il est {now.strftime('%H heures %M')}")
+        elif kind == "run_rule":
+            rid = action.get("rule_id", "").strip()
+            if rid and self.fire_rule is not None:
+                self.fire_rule(rid)
+        elif kind == "power":
+            self._power(action.get("op", "sleep"))
+
+    def _play_wav(self, path: str) -> None:
+        if not path or not os.path.exists(path):
+            return
+        with wave.open(path, "rb") as wf:
+            rate = wf.getframerate()
+            frames = wf.readframes(wf.getnframes())
+            width = wf.getsampwidth()
+        if width != 2:
+            return
+        audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+        sd.play(audio, rate)
+        sd.wait()
+
+    def _power(self, op: str) -> None:
+        flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+        if op == "shutdown":
+            subprocess.Popen(["shutdown", "/s", "/t", "0"], creationflags=flags)
+        elif op == "restart":
+            subprocess.Popen(["shutdown", "/r", "/t", "0"], creationflags=flags)
+        elif op == "logoff":
+            subprocess.Popen(["shutdown", "/l"], creationflags=flags)
+        elif op == "hibernate":
+            subprocess.Popen(["shutdown", "/h"], creationflags=flags)
+        elif op == "sleep":
+            subprocess.Popen(
+                ["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"],
+                creationflags=flags,
+            )
