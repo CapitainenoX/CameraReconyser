@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Recognizer</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Navigation -->
+    <aside class="side">
+      <div class="brand">
+        <span class="dot"></span>
+        <div>
+          <h1>Recognizer</h1>
+          <small>vision · voix · local</small>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <button data-view="live" class="active"><span class="idx">01</span> Live</button>
+        <button data-view="persons"><span class="idx">02</span> Personnes</button>
+        <button data-view="speakers"><span class="idx">03</span> Voix</button>
+        <button data-view="actions"><span class="idx">04</span> Actions</button>
+        <button data-view="settings"><span class="idx">05</span> Paramètres</button>
+      </nav>
+      <div class="statuses">
+        <div class="chip" id="chip-camera"><span class="led"></span> Caméra</div>
+        <div class="chip" id="chip-voice"><span class="led"></span> Micro</div>
+        <div class="chip" id="chip-face"><span class="led"></span> Visage</div>
+        <div class="chip" id="chip-speaker"><span class="led"></span> Locuteur</div>
+        <div class="chip" id="chip-hands"><span class="led"></span> Mains</div>
+        <div class="chip" id="chip-tts"><span class="led"></span> Voix TTS</div>
+      </div>
+    </aside>
+
+    <!-- Contenu -->
+    <main class="main">
+      <div class="alarm-banner" id="alarm-banner">
+        ⚠ Alarme active
+        <button class="btn alarm-stop" id="btn-stop-alarm">Stop alarme</button>
+      </div>
+
+      <!-- LIVE -->
+      <section class="view active" id="view-live">
+        <div class="view-head"><span class="eyebrow">flux temps réel</span><h2>Live</h2></div>
+        <div class="card quickstart" id="quickstart">
+          <h3>Démarrage rapide</h3>
+          <div class="qs-steps">
+            <div class="qs-step" id="qs-models" data-go="settings">
+              <span class="num"><span>1</span></span>
+              <div><div class="t">Modèles</div><div class="d">Télécharger vision + voix</div></div>
+            </div>
+            <div class="qs-step" id="qs-start" data-act="all-start">
+              <span class="num"><span>2</span></span>
+              <div><div class="t">Démarrer</div><div class="d">Caméra + micro en un clic</div></div>
+            </div>
+            <div class="qs-step" id="qs-enroll" data-go="persons">
+              <span class="num"><span>3</span></span>
+              <div><div class="t">Enrôler</div><div class="d">Ajouter une personne</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Caméra</h3>
+            <div class="feed-wrap" id="feed-wrap">
+              <img id="feed" src="" alt="Flux caméra" />
+              <div class="hud">
+                <span class="bracket tl"></span><span class="bracket tr"></span>
+                <span class="bracket bl"></span><span class="bracket br"></span>
+                <span class="scan"></span>
+                <span class="tag">CAM · LIVE</span>
+                <span class="fps" id="fps">-- fps</span>
+              </div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <button class="btn primary" id="btn-all-start">▶ Tout démarrer</button>
+              <button class="btn ghost" id="btn-all-stop">■ Tout arrêter</button>
+            </div>
+            <div class="row">
+              <button class="btn" id="btn-cam-start">Caméra</button>
+              <button class="btn ghost" id="btn-cam-stop">Stop caméra</button>
+              <button class="btn" id="btn-voice-start">Micro</button>
+              <button class="btn ghost" id="btn-voice-stop">Stop micro</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Transcription vocale</h3>
+            <div class="transcript" id="transcript"><span class="ts">en attente du micro…</span></div>
+            <h3 style="margin-top:16px">Événements</h3>
+            <div class="transcript" id="events" style="min-height:80px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PERSONS -->
+      <section class="view" id="view-persons">
+        <div class="view-head"><span class="eyebrow">reconnaissance faciale</span><h2>Personnes</h2></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Personnes enrôlées</h3>
+            <div id="persons-list"></div>
+          </div>
+          <div class="card">
+            <h3>Nouvelle personne</h3>
+            <div class="enroll-cam">
+              <div class="feed-wrap small" id="enroll-feed-wrap">
+                <img id="enroll-feed" src="" alt="Aperçu caméra" />
+                <div class="hud">
+                  <span class="bracket tl"></span><span class="bracket tr"></span>
+                  <span class="bracket bl"></span><span class="bracket br"></span>
+                  <span class="tag">CADRE TON VISAGE</span>
+                </div>
+                <div class="feed-off" id="enroll-feed-off">Caméra arrêtée</div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn" id="btn-enroll-cam">▶ Aperçu caméra</button>
+                <button class="btn ghost" id="btn-enroll-cam-stop">Stop</button>
+              </div>
+              <div class="notice">Vise une bonne photo : visage centré, bien éclairé. Crée la personne puis « Capturer caméra ».</div>
+            </div>
+            <label class="field"><span>Nom</span><input type="text" id="new-person-name" placeholder="ex. Alex" /></label>
+            <label class="field"><span>Salutation (optionnel · {name} pris en charge)</span><input type="text" id="new-person-greeting" placeholder="Bonjour {name}" /></label>
+            <button class="btn primary" id="btn-create-person">Créer</button>
+            <div class="notice privacy">🔒 Les visages et embeddings restent en clair sur cette machine, dans ./data/. Rien n'est envoyé en ligne.</div>
+            <label class="field" style="margin-top:16px"><span>Seuil de reconnaissance <span class="slider-val" id="face-th-val"></span></span>
+              <input type="range" id="face-threshold" min="0.20" max="0.60" step="0.01" /></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- SPEAKERS -->
+      <section class="view" id="view-speakers">
+        <div class="view-head"><span class="eyebrow">reconnaissance du locuteur</span><h2>Voix</h2></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Voix enrôlées</h3>
+            <div id="speakers-list"></div>
+          </div>
+          <div class="card">
+            <h3>Nouvelle voix</h3>
+            <label class="field"><span>Nom</span><input type="text" id="new-speaker-name" placeholder="ex. Alex" /></label>
+            <label class="field"><span>Salutation (optionnel · {name} pris en charge)</span><input type="text" id="new-speaker-greeting" placeholder="Bonjour {name}" /></label>
+            <button class="btn primary" id="btn-create-speaker">Créer</button>
+            <div class="notice privacy">🔒 Les empreintes vocales (x-vectors) restent en clair sur cette machine, dans ./data/. Rien n'est envoyé en ligne.</div>
+            <div class="notice">Pour enrôler : démarre le micro (Live), clique « Enrôler » sur une voix, puis parle 1 phrase claire. Répète 3-5 fois pour plus de précision.</div>
+            <label class="field" style="margin-top:16px"><span>Seuil de reconnaissance vocale <span class="slider-val" id="spk-th-val"></span></span>
+              <input type="range" id="speaker-threshold" min="0.30" max="0.90" step="0.01" /></label>
+            <button class="btn" id="btn-save-speaker-th">Enregistrer le seuil</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACTIONS -->
+      <section class="view" id="view-actions">
+        <div class="view-head"><span class="eyebrow">déclencheur → action</span><h2>Actions</h2></div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <h3 style="margin:0">Règles</h3>
+            <div class="row">
+              <button class="btn" id="btn-export">Exporter</button>
+              <button class="btn" id="btn-import">Importer</button>
+              <button class="btn primary" id="btn-new-rule">+ Nouvelle règle</button>
+            </div>
+          </div>
+          <div id="rules-list" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings">
+        <div class="view-head"><span class="eyebrow">configuration locale</span><h2>Paramètres</h2></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Périphériques</h3>
+            <label class="field"><span>Caméra</span><select id="sel-camera"></select></label>
+            <label class="field"><span>Microphone</span><select id="sel-mic"></select></label>
+            <label class="field"><span>Voix TTS</span><select id="sel-voice"></select></label>
+            <label class="field"><span>Modèle de reconnaissance vocale</span><select id="sel-stt">
+              <option value="vosk">Vosk FR complet (local, rapide, recommandé)</option>
+              <option value="parakeet">Parakeet v3 (NVIDIA · GPU/source requis)</option>
+            </select></label>
+            <div class="notice" id="stt-note"></div>
+            <label class="field"><span>Volume TTS <span class="slider-val" id="vol-val"></span></span>
+              <input type="range" id="tts-volume" min="0" max="1" step="0.05" /></label>
+            <button class="btn primary" id="btn-save-devices">Enregistrer</button>
+          </div>
+          <div class="card">
+            <h3>Seuils & délais</h3>
+            <label class="field"><span>Seuil voix (fuzzy) <span class="slider-val" id="voice-th-val"></span></span>
+              <input type="range" id="voice-threshold" min="50" max="100" step="1" /></label>
+            <label class="field"><span>Sensibilité mouvement <span class="slider-val" id="motion-th-val"></span></span>
+              <input type="range" id="motion-threshold" min="300" max="8000" step="100" /></label>
+            <label class="field"><span>Anti-répétition salutation (s) <span class="slider-val" id="greet-val"></span></span>
+              <input type="range" id="greet-debounce" min="3" max="120" step="1" /></label>
+            <label class="field"><span>Cooldown mouvement (s) <span class="slider-val" id="motion-cd-val"></span></span>
+              <input type="range" id="motion-cooldown" min="1" max="60" step="1" /></label>
+            <label class="field"><span>Cooldown mains (s) <span class="slider-val" id="hand-cd-val"></span></span>
+              <input type="range" id="hand-cooldown" min="1" max="30" step="1" /></label>
+            <label class="field row" style="gap:8px"><input type="checkbox" id="hands-enabled" style="width:auto" /><span style="margin:0">Activer la détection des mains</span></label>
+            <button class="btn primary" id="btn-save-thresholds">Enregistrer</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Modèles locaux</h3>
+          <div id="models-list"></div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btn-dl-models">Télécharger les modèles manquants</button>
+            <span class="meta" id="data-dir"></span>
+          </div>
+          <div class="notice">Hors-ligne ? Dépose les fichiers manuellement (voir README) puis relance. Chaque module s'active dès que son modèle est présent.</div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Mises à jour</h3>
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <div>
+              <div class="meta">Version installée : <b id="app-version">…</b></div>
+              <div class="meta" id="update-status">Vérifie les nouvelles versions sur GitHub.</div>
+            </div>
+            <div class="row">
+              <button class="btn" id="btn-check-update">Vérifier</button>
+              <button class="btn primary" id="btn-apply-update" style="display:none">Mettre à jour</button>
+            </div>
+          </div>
+          <div class="bar" id="update-bar" style="display:none; margin-top:12px"><span style="width:0%"></span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toasts"></div>
+  <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+  <input type="file" id="file-input" accept="image/*" multiple style="display:none" />
+  <input type="file" id="import-input" accept="application/json" style="display:none" />
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
