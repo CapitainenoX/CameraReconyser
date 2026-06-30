@@ -371,9 +371,11 @@ def enroll_speaker(sid: str) -> dict[str, Any]:
     if not state.voice.spk_ready:
         return {"ok": False, "message": "Modele locuteur absent. Telecharge-le."}
     if not state.voice.is_running():
-        return {"ok": False, "message": "Demarre le micro d'abord."}
+        ok, msg = state.voice.start(state.cfg.get("mic_index"))
+        if not ok:
+            return {"ok": False, "message": f"Micro indisponible: {msg}"}
     state._enroll_speaker_id = sid
-    return {"ok": True, "message": "Parle maintenant une phrase claire…"}
+    return {"ok": True, "message": "Parle maintenant : dis une phrase claire."}
 
 
 @app.post("/api/speakers/enroll/cancel")

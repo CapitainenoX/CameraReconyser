@@ -262,16 +262,22 @@ async function loadSpeakers() {
     <div class="person" data-id="${esc(s.id)}">
       <header>
         <span class="name">${esc(s.name)}</span>
-        <span class="badge ${s.enrolled ? "ok" : "warn"}">${s.enrolled ? esc(s.samples) + " échantillon(s)" : "non enrôlé"}</span>
+        <span class="badge ${s.enrolled ? "ok" : "warn"}">${s.enrolled ? esc(s.samples) + " enregistrement(s)" : "voix non captée"}</span>
       </header>
-      <div class="meta">salutation : ${esc(s.greeting || "Bonjour " + s.name)}</div>
+      <div class="meta">dit « ${esc(s.greeting || "Bonjour " + s.name)} » quand reconnu</div>
       <div class="row" style="margin-top:10px">
-        <button class="btn" data-act="enroll">🎙 Enrôler ma voix</button>
+        <button class="btn primary" data-act="enroll">🎙 Enregistrer ma voix</button>
         <button class="btn ghost" data-act="rename">Renommer</button>
         <button class="btn danger" data-act="delete">Supprimer</button>
       </div>
     </div>`).join(""));
-  if (!listening) toast("Démarre le micro (Live) pour enrôler une voix.", "info");
+}
+let ENROLL_TIMER = null;
+function resetEnrollBtn() {
+  ENROLLING_SID = null;
+  if (ENROLL_TIMER) { clearInterval(ENROLL_TIMER); ENROLL_TIMER = null; }
+  const b = $("#speakers-list").querySelector("button[data-act='enroll'][disabled]");
+  if (b) { b.disabled = false; b.textContent = "🎙 Enregistrer ma voix"; }
 }
 $("#speakers-list").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-act]");
@@ -280,8 +286,16 @@ $("#speakers-list").addEventListener("click", async (e) => {
   const act = btn.dataset.act;
   if (act === "enroll") {
     const r = await api(`/api/speakers/${sid}/enroll`, "POST");
-    toast(r.message, r.ok ? "info" : "error");
-    if (r.ok) { ENROLLING_SID = sid; btn.textContent = "⏺ Parle…"; btn.disabled = true; }
+    if (!r.ok) return toast(r.message, "error");
+    ENROLLING_SID = sid;
+    btn.disabled = true;
+    let n = 6;
+    btn.textContent = `⏺ Parle… ${n}`;
+    ENROLL_TIMER = setInterval(() => {
+      n -= 1;
+      if (n <= 0) { api("/api/speakers/enroll/cancel", "POST"); resetEnrollBtn(); toast("Rien entendu. Réessaie en parlant fort.", "error"); }
+      else if (ENROLLING_SID) btn.textContent = `⏺ Parle… ${n}`;
+    }, 1000);
   } else if (act === "delete") {
     if (confirm("Supprimer cette voix ?")) { await api(`/api/speakers/${sid}`, "DELETE"); loadSpeakers(); }
   } else if (act === "rename") {
@@ -292,8 +306,9 @@ $("#speakers-list").addEventListener("click", async (e) => {
   }
 });
 function onSpeakerEnrolled(m) {
+  if (ENROLL_TIMER) { clearInterval(ENROLL_TIMER); ENROLL_TIMER = null; }
   ENROLLING_SID = null;
-  toast(m.ok ? `Voix enregistrée (${m.samples} échantillon(s)). Répète pour affiner.` : m.message, m.ok ? "ok" : "error");
+  toast(m.ok ? `Voix captée (${m.samples} enregistrement(s)). Répète 2-3 fois pour fiabiliser.` : m.message, m.ok ? "ok" : "error");
   loadSpeakers();
 }
 $("#btn-create-speaker").onclick = async () => {
